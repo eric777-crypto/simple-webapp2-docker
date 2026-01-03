@@ -26,7 +26,7 @@ COPY . .
 
 EXPOSE 8080
 
-# Non-root compatible
+# Non-root compatible .
 USER 1001
 
 CMD ["flask", "run", "--host=0.0.0.0", "--port=8080"]
