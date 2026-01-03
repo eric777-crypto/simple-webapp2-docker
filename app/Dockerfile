@@ -1,20 +1,32 @@
-FROM ubuntu:16.04 AS base
-WORKDIR /opt
-RUN apt-get update && apt-get install -y python3 python3-pip locales
-COPY requirements.txt /opt
-RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
-RUN pip3 install -r requirements.txt
+FROM python:3.6-slim
 
-FROM base as src
-COPY . /opt
+# OpenShift UID aléatoire
+ENV HOME=/opt/app
+WORKDIR /opt/app
 
-FROM src as test
-COPY requirements.dev.txt /opt
-RUN pip3 install -r requirements.dev.txt
-RUN python3 -m pytest
+# Dépendances système minimales
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libc-dev \
+ && rm -rf /var/lib/apt/lists/*
 
-FROM src as prod
-ENTRYPOINT FLASK_APP=/opt/app.py FLASK_RUN_PORT=8080 flask run --host=0.0.0.0
+# 🔑 Permissions OpenShift
+RUN mkdir -p /opt/app \
+ && chgrp -R 0 /opt/app \
+ && chmod -R g=u /opt/app
+
+# Outils Python compatibles MarkupSafe
+RUN pip install --upgrade "pip<21" setuptools wheel
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8080
+
+# Non-root compatible
+USER 1001
+
+CMD ["flask", "run", "--host=0.0.0.0", "--port=8080"]
